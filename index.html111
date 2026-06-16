@@ -1,57 +1,67 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <!-- MOBİL VIEWPORT - Zoom engelle, tam ekran -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, 
-          maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>STREET BRAWL</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+update(time, delta) {
+    if (!this.roundStarted || this.gameOver) return;
 
-        body {
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            /* iOS safe area */
-            padding: env(safe-area-inset-top) env(safe-area-inset-right)
-                     env(safe-area-inset-bottom) env(safe-area-inset-left);
-        }
+    const dt = delta / 1000;
+    const w = GAME_WIDTH;
 
-        canvas {
-            display: block;
-            /* Tüm ekranı doldur, oran koru */
-            max-width: 100vw;
-            max-height: 100vh;
-            touch-action: none; /* Tarayıcı scroll'u engelle */
-        }
+    // Touch state
+    const touch1 = this.touchCtrl?.getState(true)  || {};
+    const touch2 = this.touchCtrl?.getState(false) || {};
 
-        /* SWIPE KONTROL OVERLAY - Sadece mobilde görünür */
-        #touch-overlay {
-            display: none;
-            position: fixed;
-            bottom: 0; left: 0;
-            width: 100%; height: 45%;
-            z-index: 999;
-            pointer-events: none;
-        }
+    // Gamepad state
+    this.gamepadCtrl?.update();
+    const gp1 = this.gamepadCtrl?.getState(0) || {};
+    const gp2 = this.gamepadCtrl?.getState(1) || {};
 
-        /* Mobil tespiti */
-        @media (max-width: 1024px) and (pointer: coarse) {
-            #touch-overlay { display: block; }
+    // Klavye state
+    const kb = this.keys;
+
+    // === P1 Hareket (Klavye VEYA Touch VEYA Gamepad) ===
+    const p1Left  = kb.left.isDown  || touch1.left  || gp1.left;
+    const p1Right = kb.right.isDown || touch1.right || gp1.right;
+
+    if (p1Left)  this.p1.container.x = Math.max(50, this.p1.container.x - this.p1.speed * dt);
+    if (p1Right) this.p1.container.x = Math.min(w-50, this.p1.container.x + this.p1.speed * dt);
+
+    // === P2 Hareket ===
+    const p2Left  = kb.p2left.isDown  || touch2.left  || gp2.left;
+    const p2Right = kb.p2right.isDown || touch2.right || gp2.right;
+
+    if (p2Left)  this.p2.container.x = Math.max(50, this.p2.container.x - this.p2.speed * dt);
+    if (p2Right) this.p2.container.x = Math.min(w-50, this.p2.container.x + this.p2.speed * dt);
+
+    // Yön güncelle
+    if (this.p1.container.x < this.p2.container.x) {
+        this.p1.container.scaleX = 1; this.p2.container.scaleX = -1;
+    } else {
+        this.p1.container.scaleX = -1; this.p2.container.scaleX = 1;
+    }
+
+    // Cooldown
+    if (this.p1cooldown > 0) this.p1cooldown -= delta;
+    if (this.p2cooldown > 0) this.p2cooldown -= delta;
+
+    // === P1 Saldırı ===
+    if (this.p1cooldown <= 0) {
+        if (Phaser.Input.Keyboard.JustDown(kb.punch) || touch1.punch || gp1.punch) {
+            this.attack(this.p1, this.p2, 'punch'); this.p1cooldown = 500;
+        } else if (Phaser.Input.Keyboard.JustDown(kb.kick) || touch1.kick || gp1.kick) {
+            this.attack(this.p1, this.p2, 'kick'); this.p1cooldown = 700;
+        } else if (Phaser.Input.Keyboard.JustDown(kb.special) || touch1.special || gp1.special) {
+            this.attack(this.p1, this.p2, 'special'); this.p1cooldown = 1200;
         }
-    </style>
-</head>
-<body>
-    <div id="touch-overlay"></div>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
-    <script src="game.js"></script>
-</body>
-</html>
+    }
+
+    // === P2 Saldırı ===
+    if (this.p2cooldown <= 0) {
+        if (Phaser.Input.Keyboard.JustDown(kb.p2punch) || touch2.punch || gp2.punch) {
+            this.attack(this.p2, this.p1, 'punch'); this.p2cooldown = 500;
+        } else if (Phaser.Input.Keyboard.JustDown(kb.p2kick) || touch2.kick || gp2.kick) {
+            this.attack(this.p2, this.p1, 'kick'); this.p2cooldown = 700;
+        } else if (Phaser.Input.Keyboard.JustDown(kb.p2special) || touch2.special || gp2.special) {
+            this.attack(this.p2, this.p1, 'special'); this.p2cooldown = 1200;
+        }
+    }
+
+    this.updateHPBars();
+}
