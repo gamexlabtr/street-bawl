@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <!-- MOBİL VIEWPORT - Zoom engelle, tam ekran -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, 
+          maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>STREET BRAWL</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            /* iOS safe area */
+            padding: env(safe-area-inset-top) env(safe-area-inset-right)
+                     env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        canvas {
+            display: block;
+            /* Tüm ekranı doldur, oran koru */
+            max-width: 100vw;
+            max-height: 100vh;
+            touch-action: none; /* Tarayıcı scroll'u engelle */
+        }
+
+        /* SWIPE KONTROL OVERLAY - Sadece mobilde görünür */
+        #touch-overlay {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0;
+            width: 100%; height: 45%;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        /* Mobil tespiti */
+        @media (max-width: 1024px) and (pointer: coarse) {
+            #touch-overlay { display: block; }
+        }
+    </style>
+</head>
+<body>
+    <div id="touch-overlay"></div>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
