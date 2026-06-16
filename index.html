@@ -2,57 +2,632 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://gamexlabtr.com https://www.gamexlabtr.com;">
-    <!-- MOBİL VIEWPORT - Zoom engelle, tam ekran -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, 
-          maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+          maximum-scale=1.0, user-scalable=no">
     <title>STREET BRAWL</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        * { margin:0; padding:0; box-sizing:border-box; }
         body {
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            /* iOS safe area */
-            padding: env(safe-area-inset-top) env(safe-area-inset-right)
-                     env(safe-area-inset-bottom) env(safe-area-inset-left);
+            background:#000;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            width:100vw; height:100vh;
+            overflow:hidden;
         }
-
-        canvas {
-            display: block;
-            /* Tüm ekranı doldur, oran koru */
-            max-width: 100vw;
-            max-height: 100vh;
-            touch-action: none; /* Tarayıcı scroll'u engelle */
-        }
-
-        /* SWIPE KONTROL OVERLAY - Sadece mobilde görünür */
-        #touch-overlay {
-            display: none;
-            position: fixed;
-            bottom: 0; left: 0;
-            width: 100%; height: 45%;
-            z-index: 999;
-            pointer-events: none;
-        }
-
-        /* Mobil tespiti */
-        @media (max-width: 1024px) and (pointer: coarse) {
-            #touch-overlay { display: block; }
-        }
+        canvas { display:block; touch-action:none; }
     </style>
 </head>
 <body>
-    <div id="touch-overlay"></div>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
-    <script src="game.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script>
+// ============================================================
+// STREET BRAWL - Tek Dosya Versiyon (GitHub Pages için)
+// ============================================================
+
+const GW = 800, GH = 450;
+const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+               || navigator.maxTouchPoints > 1;
+
+const CHARS = [
+  {id:0,  name:'KARACA',       country:'TR', style:'Boks',      color:0xe63946, colorHex:'#e63946', hp:100, speed:200, power:15},
+  {id:1,  name:'KOW LOON',     country:'HK', style:'Kung Fu',   color:0xffd700, colorHex:'#ffd700', hp:90,  speed:240, power:13},
+  {id:2,  name:'SILVA',        country:'BR', style:'Jiujitsu',  color:0x2dc653, colorHex:'#2dc653', hp:95,  speed:210, power:14},
+  {id:3,  name:'JAE HOON',     country:'KR', style:'Taekwondo', color:0x4895ef, colorHex:'#4895ef', hp:88,  speed:260, power:12},
+  {id:4,  name:'RYO TANAKA',   country:'JP', style:'Karate',    color:0xcccccc, colorHex:'#cccccc', hp:92,  speed:230, power:13},
+  {id:5,  name:'MARCUS',       country:'US', style:'Sokak',     color:0xff6b35, colorHex:'#ff6b35', hp:105, speed:190, power:17},
+  {id:6,  name:'PRIYA DEVI',   country:'IN', style:'Kalaripay', color:0xff9f1c, colorHex:'#ff9f1c', hp:87,  speed:255, power:12},
+  {id:7,  name:'HASSAN',       country:'EG', style:'Muay Thai', color:0xa8dadc, colorHex:'#a8dadc', hp:98,  speed:215, power:15},
+  {id:8,  name:'ELENA VOSS',   country:'DE', style:'Kickboks',  color:0xff4466, colorHex:'#ff4466', hp:91,  speed:235, power:14},
+  {id:9,  name:'ISABEL FUEGO', country:'ES', style:'Capoeira',  color:0xf4d35e, colorHex:'#f4d35e', hp:86,  speed:265, power:11},
+  {id:10, name:'NKECHI STORM', country:'NG', style:'Dambe',     color:0x06d6a0, colorHex:'#06d6a0', hp:100, speed:205, power:16},
+  {id:11, name:'VIKTOR KROV',  country:'RU', style:'Sambo',     color:0x9999aa, colorHex:'#9999aa', hp:110, speed:180, power:18},
+];
+
+const ARENA_BG = [
+  0x3d0000,0x1a0a00,0x003200,0x0d0030,
+  0x1a0014,0x0a0a0a,0x2d1b00,0x1a1400,
+  0x1a0000,0x1a1500,0x001a0a,0x0d0d1a,
+];
+
+// ──────────────────────────────────────────
+// TOUCH CONTROLLER
+// ──────────────────────────────────────────
+class TouchCtrl {
+    constructor(scene) {
+        this.p1 = {left:false,right:false,punch:false,kick:false,special:false};
+        this.p2 = {left:false,right:false,punch:false,kick:false,special:false};
+        this.touches = {};
+        const canvas = scene.sys.game.canvas;
+
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            [...e.changedTouches].forEach(t => {
+                const gx = (t.clientX / canvas.offsetWidth) * GW;
+                this.touches[t.identifier] = {
+                    sx: gx, sy: t.clientY,
+                    st: Date.now(), isLeft: gx < GW / 2
+                };
+            });
+        }, {passive:false});
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            [...e.changedTouches].forEach(t => {
+                const d = this.touches[t.identifier]; if (!d) return;
+                const gx = (t.clientX / canvas.offsetWidth) * GW;
+                const dx = gx - d.sx;
+                const pl = d.isLeft ? this.p1 : this.p2;
+                pl.left  = dx < -30;
+                pl.right = dx >  30;
+            });
+        }, {passive:false});
+
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault();
+            [...e.changedTouches].forEach(t => {
+                const d = this.touches[t.identifier]; if (!d) return;
+                const gx = (t.clientX / canvas.offsetWidth) * GW;
+                const dx = Math.abs(gx - d.sx);
+                const dy = Math.abs(t.clientY - d.sy);
+                const dt = Date.now() - d.st;
+                const pl = d.isLeft ? this.p1 : this.p2;
+                pl.left = pl.right = false;
+
+                if (dx < 20 && dy < 20 && dt < 200) {
+                    const rx = gx / GW;
+                    if (d.isLeft) {
+                        if      (rx < 0.17) this.fire(pl,'punch');
+                        else if (rx < 0.34) this.fire(pl,'kick');
+                        else                this.fire(pl,'special');
+                    } else {
+                        if      (rx < 0.67) this.fire(pl,'punch');
+                        else if (rx < 0.84) this.fire(pl,'kick');
+                        else                this.fire(pl,'special');
+                    }
+                }
+                if (dx > 80 && dt < 300) this.fire(pl,'special');
+                delete this.touches[t.identifier];
+            });
+        }, {passive:false});
+    }
+    fire(pl, type) { pl[type]=true; setTimeout(()=>{ pl[type]=false; },100); }
+    get(isP1) { return isP1 ? this.p1 : this.p2; }
+}
+
+// ──────────────────────────────────────────
+// GAMEPAD CONTROLLER
+// ──────────────────────────────────────────
+class GamepadCtrl {
+    constructor() { this.pads=[null,null]; this.prev=[[],[]]; }
+    update() {
+        const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let i=0;i<Math.min(2,gps.length);i++) if(gps[i]) this.pads[i]=gps[i];
+    }
+    get(idx) {
+        const pad = this.pads[idx]; if (!pad) return {};
+        const b=pad.buttons, a=pad.axes, p=this.prev[idx];
+        const jp = i => b[i]?.pressed && !p[i];
+        this.prev[idx] = b.map(x=>x?.pressed||false);
+        return {
+            left:  b[14]?.pressed || a[0]<-0.5,
+            right: b[15]?.pressed || a[0]> 0.5,
+            punch:   jp(0), kick: jp(2), special: jp(1)
+        };
+    }
+}
+
+// ──────────────────────────────────────────
+// SCENE: MENU
+// ──────────────────────────────────────────
+class MenuScene extends Phaser.Scene {
+    constructor() { super('MenuScene'); }
+    create() {
+        const w=GW, h=GH;
+        this.add.rectangle(w/2,h/2,w,h,0x080810);
+
+        // Grid
+        const g=this.add.graphics();
+        g.lineStyle(1,0x222244,0.6);
+        for(let x=0;x<w;x+=50) g.lineBetween(x,0,x,h);
+        for(let y=0;y<h;y+=50) g.lineBetween(0,y,w,y);
+
+        // Neon çerçeve
+        const f=this.add.graphics();
+        f.lineStyle(3,0xe63946,1); f.strokeRect(10,10,w-20,h-20);
+        f.lineStyle(1,0xe63946,0.3); f.strokeRect(15,15,w-30,h-30);
+
+        this.add.text(w/2, h/2-90,'STREET',{
+            fontSize:'70px',fontFamily:'Impact,Arial Black',
+            color:'#ffffff',stroke:'#e63946',strokeThickness:8
+        }).setOrigin(0.5);
+        this.add.text(w/2, h/2-15,'BRAWL',{
+            fontSize:'70px',fontFamily:'Impact,Arial Black',
+            color:'#e63946',stroke:'#ffffff',strokeThickness:5
+        }).setOrigin(0.5);
+
+        this.add.text(w/2, h/2+55,'12 SAVAŞÇI  •  2 ROUND  •  DÜNYA ARENALARI',{
+            fontSize:'12px',fontFamily:'Arial',color:'#888888'
+        }).setOrigin(0.5);
+
+        const btn = this.add.text(w/2, h/2+100,
+            IS_MOBILE ? '▶  EKRANA DOKUN' : '▶  OYNAMAK İÇİN TIKLA',{
+            fontSize:'20px',fontFamily:'Arial',color:'#ffd700'
+        }).setOrigin(0.5);
+        this.tweens.add({targets:btn,alpha:0.1,duration:700,yoyo:true,repeat:-1});
+
+        this.add.text(w/2,h-18,'gamxlabtr.github.io/street-brawl',{
+            fontSize:'10px',fontFamily:'Arial',color:'#444455'
+        }).setOrigin(0.5);
+
+        const go = () => this.scene.start('SelectScene',{player:1,p1char:null});
+        this.input.on('pointerdown', go);
+        this.input.keyboard.on('keydown', go);
+    }
+}
+
+// ──────────────────────────────────────────
+// SCENE: CHARACTER SELECT
+// ──────────────────────────────────────────
+class SelectScene extends Phaser.Scene {
+    constructor() { super('SelectScene'); }
+    init(d) { this.pNum=d.player||1; this.p1c=d.p1char??null; this.sel=0; }
+
+    create() {
+        const w=GW, h=GH;
+        this.add.rectangle(w/2,h/2,w,h,0x060614);
+
+        const pc = this.pNum===1?'#e63946':'#4895ef';
+        this.add.text(w/2,22,`PLAYER ${this.pNum}  —  SAVAŞÇINI SEÇ`,{
+            fontSize:'17px',fontFamily:'Impact',color:pc
+        }).setOrigin(0.5);
+
+        // Karakter kartları
+        this.cards=[];
+        const cw=160,ch=98,cols=4;
+        const sx=(w - cols*cw)/2 + cw/2;
+        const sy=62;
+
+        CHARS.forEach((c,i)=>{
+            const cx=sx+(i%cols)*cw, cy=sy+Math.floor(i/cols)*ch;
+
+            this.add.rectangle(cx,cy,cw-6,ch-6,0x0e0e22)
+                .setStrokeStyle(2,0x2a2a55);
+
+            // Renk şeridi
+            const g=this.add.graphics();
+            g.fillStyle(c.color,0.35);
+            g.fillRect(cx-cw/2+3, cy-ch/2+3, cw-9, 36);
+
+            this.add.text(cx,cy-ch/2+21,c.name,{
+                fontSize:'11px',fontFamily:'Impact',color:c.colorHex
+            }).setOrigin(0.5);
+
+            this.add.text(cx,cy,`[${c.country}] ${c.style}`,{
+                fontSize:'10px',fontFamily:'Arial',color:'#aaaaaa'
+            }).setOrigin(0.5);
+
+            // HP bar
+            const bw=cw-20;
+            this.add.rectangle(cx,cy+28,bw,5,0x1a1a2e);
+            this.add.rectangle(cx-bw/2+(c.hp/110*bw)/2,cy+28,c.hp/110*bw,5,0x2dc653);
+
+            // Tıklanabilir alan
+            const hit = this.add.rectangle(cx,cy,cw-6,ch-6,0xffffff,0)
+                .setInteractive()
+                .on('pointerover',()=>this.pick(i))
+                .on('pointerdown',()=>this.confirm(i));
+
+            this.cards.push({cx,cy});
+        });
+
+        // Seçim kutusu
+        this.box = this.add.rectangle(0,0,cw-2,ch-2,0,0)
+            .setStrokeStyle(3,0xffd700);
+        this.pick(0);
+
+        this.add.text(w/2,h-14,
+            IS_MOBILE?'Kartına dokun':'Ok tuşları + ENTER  veya  Mouse',{
+            fontSize:'10px',fontFamily:'Arial',color:'#555566'
+        }).setOrigin(0.5);
+
+        // Klavye
+        const kb=this.input.keyboard;
+        kb.on('keydown-LEFT',  ()=>this.pick(Math.max(0,this.sel-1)));
+        kb.on('keydown-RIGHT', ()=>this.pick(Math.min(11,this.sel+1)));
+        kb.on('keydown-UP',    ()=>this.pick(Math.max(0,this.sel-4)));
+        kb.on('keydown-DOWN',  ()=>this.pick(Math.min(11,this.sel+4)));
+        kb.on('keydown-ENTER', ()=>this.confirm(this.sel));
+    }
+
+    pick(i) {
+        this.sel=i;
+        this.box.setPosition(this.cards[i].cx, this.cards[i].cy);
+    }
+
+    confirm(i) {
+        if (this.pNum===1) {
+            this.scene.start('SelectScene',{player:2,p1char:i});
+        } else {
+            this.scene.start('FightScene',{p1c:this.p1c,p2c:i,round:1,p1w:0,p2w:0});
+        }
+    }
+}
+
+// ──────────────────────────────────────────
+// SCENE: FIGHT
+// ──────────────────────────────────────────
+class FightScene extends Phaser.Scene {
+    constructor() { super('FightScene'); }
+
+    init(d) {
+        this.cd1=CHARS[d.p1c]; this.cd2=CHARS[d.p2c];
+        this.i1=d.p1c; this.i2=d.p2c;
+        this.round=d.round||1;
+        this.p1w=d.p1w||0; this.p2w=d.p2w||0;
+    }
+
+    create() {
+        const w=GW, h=GH;
+        this.over=false; this.started=false;
+        this.c1=0; this.c2=0; // cooldowns
+
+        // Arena
+        this.add.rectangle(w/2,h/2,w,h,ARENA_BG[this.i1]);
+        const ag=this.add.graphics();
+        ag.fillStyle(0x000000,0.5); ag.fillRect(0,0,w,h-82);
+        // Zemin
+        this.add.rectangle(w/2,h-41,w,82,0x111118);
+        this.add.rectangle(w/2,h-82,w,3,0x333344);
+        // Neon zemin çizgisi
+        const ng=this.add.graphics();
+        ng.lineStyle(2,this.cd1.color,0.6);
+        ng.lineBetween(0,h-82,w,h-82);
+
+        // Savaşçılar
+        this.f1=this.makeFighter(140,    h-82, this.cd1, true);
+        this.f2=this.makeFighter(w-140, h-82, this.cd2, false);
+
+        this.buildHUD();
+        if(IS_MOBILE) this.buildTouchHints();
+
+        // Kontroller
+        this.keys=this.input.keyboard.addKeys({
+            left:Phaser.Input.Keyboard.KeyCodes.LEFT,
+            right:Phaser.Input.Keyboard.KeyCodes.RIGHT,
+            punch:Phaser.Input.Keyboard.KeyCodes.A,
+            kick:Phaser.Input.Keyboard.KeyCodes.S,
+            special:Phaser.Input.Keyboard.KeyCodes.D,
+            p2l:Phaser.Input.Keyboard.KeyCodes.J,
+            p2r:Phaser.Input.Keyboard.KeyCodes.L,
+            p2p:Phaser.Input.Keyboard.KeyCodes.Z,
+            p2k:Phaser.Input.Keyboard.KeyCodes.X,
+            p2s:Phaser.Input.Keyboard.KeyCodes.C,
+        });
+
+        this.touch=new TouchCtrl(this);
+        this.gpad=new GamepadCtrl();
+
+        // Timer
+        this.tLeft=60;
+        this.time.addEvent({delay:1000,loop:true,callback:()=>{
+            if(!this.started||this.over) return;
+            this.tLeft--;
+            this.tTxt.setText(this.tLeft);
+            if(this.tLeft<=0) this.endRound();
+        }});
+
+        this.announce();
+    }
+
+    makeFighter(x,y,c,left) {
+        const g=this.add.graphics();
+        // Gövde
+        g.fillStyle(c.color,1);    g.fillRoundedRect(-18,-75,36,48,6);
+        // Kafa
+        g.fillStyle(0xf4a261,1);   g.fillCircle(0,-92,17);
+        // Bacaklar
+        g.fillStyle(c.color,0.85); g.fillRoundedRect(-17,-26,15,34,3);
+                                   g.fillRoundedRect(2,-26,15,34,3);
+        // Kollar
+        g.fillStyle(c.color,0.9);  g.fillRoundedRect(-32,-74,13,28,3);
+                                   g.fillRoundedRect(19,-74,13,28,3);
+        // Yüz detayı
+        g.fillStyle(0x000000,0.5); g.fillCircle(-6,-95,3); g.fillCircle(6,-95,3);
+
+        const con=this.add.container(x,y,[g]);
+        con.setScale(left?1:-1,1);
+        return {con,hp:c.hp,maxHp:c.hp,spd:c.speed,pow:c.power,data:c};
+    }
+
+    buildHUD() {
+        const w=GW;
+        // P1 HP
+        this.add.rectangle(40,20,320,16,0x222233).setOrigin(0,0.5);
+        this.b1=this.add.rectangle(40,20,320,12,0xe63946).setOrigin(0,0.5);
+        // P2 HP
+        this.add.rectangle(w-40,20,320,16,0x222233).setOrigin(1,0.5);
+        this.b2=this.add.rectangle(w-40,20,320,12,0x4895ef).setOrigin(1,0.5);
+
+        // İsimler
+        this.add.text(42,34,this.cd1.name,{fontSize:'11px',fontFamily:'Impact',color:this.cd1.colorHex});
+        this.add.text(w-42,34,this.cd2.name,{fontSize:'11px',fontFamily:'Impact',color:this.cd2.colorHex}).setOrigin(1,0);
+
+        // Timer
+        this.tTxt=this.add.text(w/2,18,'60',{
+            fontSize:'26px',fontFamily:'Impact',color:'#ffd700',
+            stroke:'#000',strokeThickness:3
+        }).setOrigin(0.5);
+        this.add.text(w/2,40,`ROUND ${this.round}`,{
+            fontSize:'10px',fontFamily:'Arial',color:'#aaaaaa'
+        }).setOrigin(0.5);
+
+        // Kazanma noktaları
+        for(let i=0;i<this.p1w;i++) this.add.circle(55+i*16,50,5,0xe63946);
+        for(let i=0;i<this.p2w;i++) this.add.circle(w-55-i*16,50,5,0x4895ef);
+
+        if(!IS_MOBILE){
+            this.add.text(8,GH-16,'P1: ←→  A:Yum  S:Tek  D:Özel',{fontSize:'9px',fontFamily:'Arial',color:'#444455'});
+            this.add.text(w-8,GH-16,'P2: J/L  Z:Yum  X:Tek  C:Özel',{fontSize:'9px',fontFamily:'Arial',color:'#444455',align:'right'}).setOrigin(1,1);
+        }
+    }
+
+    buildTouchHints() {
+        const w=GW,h=GH,a=0.45;
+        const g=this.add.graphics();
+        g.fillStyle(0xe63946,0.07); g.fillRect(0,h*0.56,w*0.5,h*0.44);
+        g.lineStyle(1,0xe63946,0.25); g.strokeRect(0,h*0.56,w*0.5,h*0.44);
+        g.fillStyle(0x4895ef,0.07); g.fillRect(w*0.5,h*0.56,w*0.5,h*0.44);
+        g.lineStyle(1,0x4895ef,0.25); g.strokeRect(w*0.5,h*0.56,w*0.5,h*0.44);
+
+        const s={fontSize:'20px'};
+        [[w*.08,'👊'],[w*.22,'🦵'],[w*.36,'⚡'],
+         [w*.64,'👊'],[w*.78,'🦵'],[w*.92,'⚡']].forEach(([x,ic])=>{
+            this.add.text(x,h*.71,ic,s).setOrigin(0.5).setAlpha(a);
+        });
+        const lS={fontSize:'9px',color:'#e63946'};
+        const rS={fontSize:'9px',color:'#4895ef'};
+        [['YUM',w*.08,lS],['TEK',w*.22,lS],['ÖZEL',w*.36,lS],
+         ['YUM',w*.64,rS],['TEK',w*.78,rS],['ÖZEL',w*.92,rS]].forEach(([t,x,st])=>{
+            this.add.text(x,h*.83,t,st).setOrigin(0.5).setAlpha(a);
+        });
+        this.add.text(w*.22,h*.93,'← Swipe →',{fontSize:'9px',color:'#666677'}).setOrigin(0.5).setAlpha(a);
+        this.add.text(w*.78,h*.93,'← Swipe →',{fontSize:'9px',color:'#666677'}).setOrigin(0.5).setAlpha(a);
+    }
+
+    announce() {
+        const w=GW,h=GH;
+        const ov=this.add.rectangle(w/2,h/2,w,h,0x000000,0.75);
+        const rt=this.add.text(w/2,h/2-25,`ROUND ${this.round}`,{
+            fontSize:'54px',fontFamily:'Impact',
+            color:'#ffd700',stroke:'#000',strokeThickness:5
+        }).setOrigin(0.5).setAlpha(0);
+        const ft=this.add.text(w/2,h/2+48,'DÖVÜŞ!',{
+            fontSize:'30px',fontFamily:'Impact',
+            color:'#e63946',stroke:'#fff',strokeThickness:3
+        }).setOrigin(0.5).setAlpha(0);
+
+        this.tweens.add({targets:[ov,rt],alpha:{from:0,to:1},duration:350,onComplete:()=>{
+            this.time.delayedCall(700,()=>{
+                this.tweens.add({targets:ft,alpha:1,scaleX:1.3,scaleY:1.3,duration:280,onComplete:()=>{
+                    this.time.delayedCall(550,()=>{
+                        this.tweens.add({targets:[ov,rt,ft],alpha:0,duration:350,onComplete:()=>{
+                            ov.destroy(); rt.destroy(); ft.destroy();
+                            this.started=true;
+                        }});
+                    });
+                }});
+            });
+        }});
+    }
+
+    update(_t,dt) {
+        if(!this.started||this.over) return;
+        const sec=dt/1000, w=GW;
+        const t1=this.touch.get(true), t2=this.touch.get(false);
+        this.gpad.update();
+        const g1=this.gpad.get(0), g2=this.gpad.get(1);
+        const kb=this.keys;
+
+        // Hareket
+        const p1L=kb.left.isDown  ||t1.left  ||g1.left;
+        const p1R=kb.right.isDown ||t1.right ||g1.right;
+        const p2L=kb.p2l.isDown   ||t2.left  ||g2.left;
+        const p2R=kb.p2r.isDown   ||t2.right ||g2.right;
+
+        if(p1L) this.f1.con.x=Math.max(50,   this.f1.con.x-this.f1.spd*sec);
+        if(p1R) this.f1.con.x=Math.min(w-50, this.f1.con.x+this.f1.spd*sec);
+        if(p2L) this.f2.con.x=Math.max(50,   this.f2.con.x-this.f2.spd*sec);
+        if(p2R) this.f2.con.x=Math.min(w-50, this.f2.con.x+this.f2.spd*sec);
+
+        // Yön
+        const face=this.f1.con.x<this.f2.con.x;
+        this.f1.con.scaleX= face? 1:-1;
+        this.f2.con.scaleX= face?-1: 1;
+
+        // Cooldown
+        if(this.c1>0) this.c1-=dt;
+        if(this.c2>0) this.c2-=dt;
+
+        const JD=Phaser.Input.Keyboard.JustDown;
+
+        // P1 saldırı
+        if(this.c1<=0){
+            if(JD(kb.punch)||t1.punch||g1.punch){this.hit(this.f1,this.f2,'punch');this.c1=480;}
+            else if(JD(kb.kick)||t1.kick||g1.kick){this.hit(this.f1,this.f2,'kick');this.c1=680;}
+            else if(JD(kb.special)||t1.special||g1.special){this.hit(this.f1,this.f2,'special');this.c1=1150;}
+        }
+        // P2 saldırı
+        if(this.c2<=0){
+            if(JD(kb.p2p)||t2.punch||g2.punch){this.hit(this.f2,this.f1,'punch');this.c2=480;}
+            else if(JD(kb.p2k)||t2.kick||g2.kick){this.hit(this.f2,this.f1,'kick');this.c2=680;}
+            else if(JD(kb.p2s)||t2.special||g2.special){this.hit(this.f2,this.f1,'special');this.c2=1150;}
+        }
+
+        this.refreshBars();
+    }
+
+    hit(atk,def,type) {
+        const dist=Math.abs(atk.con.x-def.con.x);
+        const range=type==='special'?165:type==='kick'?130:100;
+        if(dist>range) return;
+
+        let dmg=atk.data.power;
+        if(type==='kick')    dmg=Math.floor(dmg*1.4);
+        if(type==='special') dmg=Math.floor(dmg*2.0);
+        dmg=Math.floor(dmg*(0.8+Math.random()*0.4));
+
+        def.hp=Math.max(0,def.hp-dmg);
+
+        // Efekt
+        const labels={punch:'HIT!',kick:'KICK!',special:'💥 KO!'};
+        const colors={punch:'#ffffff',kick:'#ffd700',special:'#ff6b35'};
+        const tx=this.add.text(def.con.x,def.con.y-65,`${labels[type]} -${dmg}`,{
+            fontSize:type==='special'?'19px':'13px',
+            fontFamily:'Impact',color:colors[type],
+            stroke:'#000',strokeThickness:3
+        }).setOrigin(0.5);
+        this.tweens.add({targets:tx,y:def.con.y-110,alpha:0,duration:750,onComplete:()=>tx.destroy()});
+
+        this.cameras.main.shake(70,type==='special'?0.015:0.005);
+
+        const push=def.con.x>atk.con.x?1:-1;
+        def.con.x=Phaser.Math.Clamp(def.con.x+push*(type==='special'?38:18),50,GW-50);
+
+        if(def.hp<=0) this.endRound();
+    }
+
+    refreshBars() {
+        const r1=this.f1.hp/this.f1.maxHp, r2=this.f2.hp/this.f2.maxHp;
+        this.b1.scaleX=r1; this.b2.scaleX=r2;
+        this.b1.setFillStyle(r1<0.3?0xff0000:r1<0.6?0xff9900:0xe63946);
+        this.b2.setFillStyle(r2<0.3?0xff0000:r2<0.6?0xff9900:0x4895ef);
+    }
+
+    endRound() {
+        if(this.over) return;
+        this.over=true; this.started=false;
+
+        const w=this.f1.hp<=0?'p2':this.f2.hp<=0?'p1':this.f1.hp>=this.f2.hp?'p1':'p2';
+        const p1w=this.p1w+(w==='p1'?1:0);
+        const p2w=this.p2w+(w==='p2'?1:0);
+        const isKO=this.f1.hp<=0||this.f2.hp<=0;
+
+        const ko=this.add.text(GW/2,GH/2,isKO?'K.O.!':'TIME!',{
+            fontSize:'68px',fontFamily:'Impact',
+            color:'#e63946',stroke:'#000',strokeThickness:6
+        }).setOrigin(0.5).setAlpha(0);
+
+        this.tweens.add({targets:ko,alpha:1,scaleX:1.2,scaleY:1.2,duration:380,onComplete:()=>{
+            this.time.delayedCall(1100,()=>{
+                if(this.round>=2||p1w===2||p2w===2){
+                    this.scene.start('ResultScene',{p1c:this.i1,p2c:this.i2,p1w,p2w});
+                } else {
+                    this.scene.start('FightScene',{p1c:this.i1,p2c:this.i2,round:2,p1w,p2w});
+                }
+            });
+        }});
+    }
+}
+
+// ──────────────────────────────────────────
+// SCENE: RESULT
+// ──────────────────────────────────────────
+class ResultScene extends Phaser.Scene {
+    constructor() { super('ResultScene'); }
+    init(d) { this.p1c=CHARS[d.p1c]; this.p2c=CHARS[d.p2c]; this.p1w=d.p1w; this.p2w=d.p2w; }
+
+    create() {
+        const w=GW,h=GH;
+        const winner=this.p1w>=this.p2w?this.p1c:this.p2c;
+
+        this.add.rectangle(w/2,h/2,w,h,0x050508);
+
+        const gl=this.add.graphics();
+        gl.fillStyle(winner.color,0.12); gl.fillCircle(w/2,h/2,280);
+        gl.lineStyle(2,winner.color,0.4); gl.strokeCircle(w/2,h/2,280);
+
+        this.add.text(w/2,55,'🏆  KAZANAN!  🏆',{
+            fontSize:'18px',fontFamily:'Arial',color:'#ffd700'
+        }).setOrigin(0.5);
+
+        const nt=this.add.text(w/2,h/2-28,winner.name,{
+            fontSize:'54px',fontFamily:'Impact',
+            color:winner.colorHex,stroke:'#000',strokeThickness:6
+        }).setOrigin(0.5).setAlpha(0);
+
+        this.add.text(w/2,h/2+32,`[${winner.country}]  ${winner.style}`,{
+            fontSize:'18px',fontFamily:'Arial',color:'#cccccc'
+        }).setOrigin(0.5);
+
+        this.add.text(w/2,h/2+78,`${this.p1c.name}  ${this.p1w} — ${this.p2w}  ${this.p2c.name}`,{
+            fontSize:'13px',fontFamily:'Arial',color:'#777788'
+        }).setOrigin(0.5);
+
+        this.tweens.add({targets:nt,alpha:1,y:h/2-38,duration:550,ease:'Back.easeOut'});
+
+        // Yıldızlar
+        for(let i=0;i<24;i++){
+            const s=this.add.circle(
+                Phaser.Math.Between(30,w-30),
+                Phaser.Math.Between(30,h-30),
+                Phaser.Math.Between(2,5),
+                winner.color
+            ).setAlpha(0);
+            this.tweens.add({targets:s,alpha:{from:0,to:0.9},
+                duration:Phaser.Math.Between(250,700),
+                delay:Phaser.Math.Between(0,900),yoyo:true,repeat:-1});
+        }
+
+        const btn=this.add.text(w/2,h-48,'🔄  TEKRAR OYNA',{
+            fontSize:'15px',fontFamily:'Arial',
+            color:'#ffd700',backgroundColor:'#1a1a00',
+            padding:{x:22,y:10}
+        }).setOrigin(0.5).setInteractive();
+
+        btn.on('pointerover',()=>btn.setStyle({color:'#ffffff',backgroundColor:'#333300'}));
+        btn.on('pointerout', ()=>btn.setStyle({color:'#ffd700',backgroundColor:'#1a1a00'}));
+        btn.on('pointerdown',()=>this.scene.start('MenuScene'));
+        this.input.keyboard.on('keydown',()=>this.scene.start('MenuScene'));
+    }
+}
+
+// ──────────────────────────────────────────
+// BAŞLAT
+// ──────────────────────────────────────────
+new Phaser.Game({
+    type: Phaser.AUTO,
+    backgroundColor: '#000000',
+    scene: [MenuScene, SelectScene, FightScene, ResultScene],
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: GW, height: GH,
+        min: {width:320, height:180},
+        max: {width:1920,height:1080},
+    },
+    input: { touch:true, mouse:true, keyboard:true, gamepad:true }
+});
+</script>
 </body>
 </html>
