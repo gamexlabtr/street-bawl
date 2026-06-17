@@ -5,6 +5,7 @@ import { GLTFLoader } from 'https://unpkg.com/three@0.165.0/examples/jsm/loaders
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
+// ================= CAMERA =================
 const camera = new THREE.PerspectiveCamera(
 75,
 window.innerWidth/window.innerHeight,
@@ -12,6 +13,7 @@ window.innerWidth/window.innerHeight,
 1000
 );
 
+// ================= RENDERER =================
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -31,25 +33,39 @@ new THREE.MeshStandardMaterial({ color:0x333333 })
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-// ================= LOADERS =================
+// ================= LOADER =================
 const loader = new GLTFLoader();
 
 let player, enemy;
+let gameReady = false;
 
-// GLB CHARACTER (aynı model şimdilik)
-loader.load("models/fighter.glb", (gltf)=>{
+// ================= LOAD MODELS =================
+loader.load("./models/fighter.glb", (gltf)=>{
+
     player = gltf.scene;
-    player.position.set(-3,0,0);
+    player.position.set(-3,1,0);
     player.scale.set(1,1,1);
     scene.add(player);
+
+    checkReady();
 });
 
-loader.load("models/fighter.glb", (gltf)=>{
+loader.load("./models/fighter.glb", (gltf)=>{
+
     enemy = gltf.scene;
-    enemy.position.set(3,0,0);
+    enemy.position.set(3,1,0);
     enemy.scale.set(1,1,1);
     scene.add(enemy);
+
+    checkReady();
 });
+
+function checkReady(){
+    if(player && enemy){
+        gameReady = true;
+        updateHUD();
+    }
+}
 
 // ================= GAME STATE =================
 let playerHP = 100;
@@ -64,42 +80,32 @@ camera.position.set(0,5,10);
 
 // ================= HUD =================
 function updateHUD(){
-    document.getElementById("playerHp").innerText = "Oyuncu HP: " + playerHP;
-    document.getElementById("enemyHp").innerText = "Rakip HP: " + enemyHP;
+
+    document.getElementById("playerHp").innerText =
+    "Oyuncu HP: " + playerHP;
+
+    document.getElementById("enemyHp").innerText =
+    "Rakip HP: " + enemyHP;
+}
+
+// ================= ATTACK =================
+function attack(damage){
+
+    if(!gameReady) return;
+
+    const distance = Math.abs(player.position.x - enemy.position.x);
+
+    if(distance < 2){
+
+        enemyHP -= damage;
+        if(enemyHP < 0) enemyHP = 0;
+
+        updateHUD();
+        checkRound();
+    }
 }
 
 // ================= ROUND SYSTEM =================
-function nextRound(){
-
-    round++;
-
-    playerHP = 100;
-    enemyHP = 100;
-
-    player.position.set(-3,0,0);
-    enemy.position.set(3,0,0);
-
-    updateHUD();
-
-    alert("ROUND " + round);
-}
-
-function resetMatch(){
-
-    round = 1;
-    playerRounds = 0;
-    enemyRounds = 0;
-
-    playerHP = 100;
-    enemyHP = 100;
-
-    player.position.set(-3,0,0);
-    enemy.position.set(3,0,0);
-
-    updateHUD();
-}
-
-// ================= CHECK ROUND =================
 function checkRound(){
 
     if(enemyHP <= 0){
@@ -116,22 +122,34 @@ function checkRound(){
     }
 }
 
-// ================= ATTACK =================
-function attack(damage){
+function nextRound(){
 
-    if(!player || !enemy) return;
+    round++;
 
-    const distance = Math.abs(player.position.x - enemy.position.x);
+    playerHP = 100;
+    enemyHP = 100;
 
-    if(distance < 2){
+    player.position.set(-3,1,0);
+    enemy.position.set(3,1,0);
 
-        enemyHP -= damage;
+    updateHUD();
 
-        if(enemyHP < 0) enemyHP = 0;
+    alert("ROUND " + round);
+}
 
-        updateHUD();
-        checkRound();
-    }
+function resetMatch(){
+
+    round = 1;
+    playerRounds = 0;
+    enemyRounds = 0;
+
+    playerHP = 100;
+    enemyHP = 100;
+
+    player.position.set(-3,1,0);
+    enemy.position.set(3,1,0);
+
+    updateHUD();
 }
 
 // ================= CONTROLS =================
@@ -148,7 +166,6 @@ window.addEventListener("keydown",(e)=>{
     if(e.key.toLowerCase() === "k"){
         attack(20);
     }
-
 });
 
 window.addEventListener("keyup",(e)=>{
@@ -158,11 +175,12 @@ window.addEventListener("keyup",(e)=>{
 // ================= UPDATE =================
 function update(){
 
-    if(!player || !enemy) return;
+    if(!gameReady) return;
 
     if(keys["a"]) player.position.x -= 0.1;
     if(keys["d"]) player.position.x += 0.1;
 
+    // simple AI
     if(enemy.position.x > player.position.x + 2){
         enemy.position.x -= 0.03;
     }
@@ -184,6 +202,3 @@ camera.updateProjectionMatrix();
 renderer.setSize(window.innerWidth,window.innerHeight);
 
 });
-
-// ================= INIT =================
-updateHUD();
