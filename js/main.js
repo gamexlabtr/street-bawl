@@ -30,19 +30,20 @@ const light = new THREE.DirectionalLight(0xffffff, 2);
 light.position.set(5, 10, 5);
 scene.add(light);
 
-const cube = new THREE.Mesh(
-  new THREE.BoxGeometry(1,1,1),
-  new THREE.MeshBasicMaterial({color:0x00ff00})
 );
-scene.add(cube);
 // ================= FLOOR =================
 const floor = new THREE.Mesh(
 new THREE.PlaneGeometry(40, 40),
 new THREE.MeshStandardMaterial({ color: 0x333333 })
 );
 floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
 
+scene.add(floor);
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(1,1,1),
+  new THREE.MeshBasicMaterial({color:0x00ff00})
+);
+scene.add(cube);
 // ================= MODELS =================
 const loader = new GLTFLoader();
 
