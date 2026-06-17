@@ -1,5 +1,4 @@
-console.log("MAIN JS ÇALIŞTI");
-alert("JS OK");
+console.log("JS BAŞLADI");
 
 import * as THREE from 'https://unpkg.com/three@0.165.0/build/three.module.js';
 import { GLTFLoader } from 'https://unpkg.com/three@0.165.0/examples/jsm/loaders/GLTFLoader.js';
@@ -15,6 +14,7 @@ window.innerWidth / window.innerHeight,
 0.1,
 1000
 );
+
 camera.position.set(0, 5, 10);
 camera.lookAt(0, 1, 0);
 
@@ -30,28 +30,30 @@ const light = new THREE.DirectionalLight(0xffffff, 2);
 light.position.set(5, 10, 5);
 scene.add(light);
 
-);
 // ================= FLOOR =================
 const floor = new THREE.Mesh(
 new THREE.PlaneGeometry(40, 40),
 new THREE.MeshStandardMaterial({ color: 0x333333 })
 );
 floor.rotation.x = -Math.PI / 2;
-
 scene.add(floor);
+
+// ================= TEST CUBE (KESİN GÖRÜNMELİ) =================
 const cube = new THREE.Mesh(
-  new THREE.BoxGeometry(1,1,1),
-  new THREE.MeshBasicMaterial({color:0x00ff00})
+new THREE.BoxGeometry(1, 1, 1),
+new THREE.MeshBasicMaterial({ color: 0x00ff00 })
 );
+cube.position.y = 1;
 scene.add(cube);
-// ================= MODELS =================
+
+// ================= LOADER =================
 const loader = new GLTFLoader();
 
 let player = null;
 let enemy = null;
 let gameReady = false;
 
-// ⚠️ MODEL PATH (BURASI KRİTİK)
+// ================= MODELS =================
 loader.load("./models/fighter.glb", (gltf) => {
 
     player = gltf.scene;
@@ -60,7 +62,8 @@ loader.load("./models/fighter.glb", (gltf) => {
     scene.add(player);
 
     checkReady();
-}, undefined, console.error);
+
+}, undefined, (err) => console.error("PLAYER ERROR:", err));
 
 loader.load("./models/fighter.glb", (gltf) => {
 
@@ -70,7 +73,8 @@ loader.load("./models/fighter.glb", (gltf) => {
     scene.add(enemy);
 
     checkReady();
-}, undefined, console.error);
+
+}, undefined, (err) => console.error("ENEMY ERROR:", err));
 
 // ================= GAME STATE =================
 let playerHP = 100;
@@ -82,8 +86,8 @@ let round = 1;
 function checkReady() {
     if (player && enemy) {
         gameReady = true;
-        updateHUD();
         console.log("GAME READY");
+        updateHUD();
     }
 }
 
@@ -174,7 +178,6 @@ window.addEventListener("keyup", (e) => {
 });
 
 // ================= LOOP =================
-
 function animate() {
 
     requestAnimationFrame(animate);
