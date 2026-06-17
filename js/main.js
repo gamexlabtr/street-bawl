@@ -1,3 +1,6 @@
+console.log("MAIN JS ÇALIŞTI");
+alert("JS OK");
+
 import * as THREE from 'https://unpkg.com/three@0.165.0/build/three.module.js';
 import { GLTFLoader } from 'https://unpkg.com/three@0.165.0/examples/jsm/loaders/GLTFLoader.js';
 
