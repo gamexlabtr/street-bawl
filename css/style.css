@@ -5,11 +5,78 @@ body{
     font-family:Arial,sans-serif;
 }
 
+/* CANVAS */
+canvas{
+    display:block;
+}
+
+/* HUD */
 #hud{
     position:absolute;
     top:10px;
     left:10px;
     z-index:10;
     color:white;
-    font-size:20px;
+    font-size:18px;
+    padding:12px 14px;
+    background:rgba(0,0,0,0.6);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:10px;
+    backdrop-filter: blur(6px);
+    line-height:1.6;
+}
+
+/* CAN BAR STİLİ */
+.hp-bar{
+    width:150px;
+    height:10px;
+    background:#333;
+    border-radius:5px;
+    overflow:hidden;
+    margin-top:5px;
+}
+
+.hp-fill{
+    height:100%;
+    width:100%;
+    background:linear-gradient(90deg, #00ff00, #ff0000);
+}
+
+/* MOBİL KONTROLLER */
+#controls{
+    position:absolute;
+    bottom:20px;
+    left:20px;
+    z-index:10;
+    display:flex;
+    gap:10px;
+}
+
+.btn{
+    width:60px;
+    height:60px;
+    background:rgba(255,255,255,0.1);
+    border:1px solid rgba(255,255,255,0.3);
+    color:white;
+    font-size:18px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    user-select:none;
+    cursor:pointer;
+}
+
+.btn:active{
+    background:rgba(255,255,255,0.3);
+}
+
+/* SAĞ SAVAŞ BUTONLARI */
+#attackControls{
+    position:absolute;
+    bottom:20px;
+    right:20px;
+    z-index:10;
+    display:flex;
+    gap:10px;
 }
