@@ -12,6 +12,8 @@ window.innerWidth / window.innerHeight,
 0.1,
 1000
 );
+camera.position.set(0, 5, 10);
+camera.lookAt(0, 1, 0);
 
 // ================= RENDERER =================
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -33,18 +35,14 @@ new THREE.MeshStandardMaterial({ color: 0x333333 })
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// ================= CAMERA POSITION =================
-camera.position.set(0, 5, 10);
-camera.lookAt(0, 1, 0);
-
-// ================= LOADER =================
+// ================= MODELS =================
 const loader = new GLTFLoader();
 
 let player = null;
 let enemy = null;
 let gameReady = false;
 
-// ================= LOAD MODELS =================
+// ⚠️ MODEL PATH (BURASI KRİTİK)
 loader.load("./models/fighter.glb", (gltf) => {
 
     player = gltf.scene;
@@ -52,12 +50,8 @@ loader.load("./models/fighter.glb", (gltf) => {
     player.scale.set(2, 2, 2);
     scene.add(player);
 
-    console.log("Player loaded");
     checkReady();
-},
-undefined,
-(err) => console.error("Player model error:", err)
-);
+}, undefined, console.error);
 
 loader.load("./models/fighter.glb", (gltf) => {
 
@@ -66,26 +60,21 @@ loader.load("./models/fighter.glb", (gltf) => {
     enemy.scale.set(2, 2, 2);
     scene.add(enemy);
 
-    console.log("Enemy loaded");
     checkReady();
-},
-undefined,
-(err) => console.error("Enemy model error:", err)
-);
+}, undefined, console.error);
 
 // ================= GAME STATE =================
 let playerHP = 100;
 let enemyHP = 100;
-
 let playerRounds = 0;
 let round = 1;
 
-// ================= READY CHECK =================
+// ================= READY =================
 function checkReady() {
     if (player && enemy) {
         gameReady = true;
-        console.log("GAME READY");
         updateHUD();
+        console.log("GAME READY");
     }
 }
 
@@ -102,7 +91,7 @@ function updateHUD() {
 // ================= ATTACK =================
 function attack(damage) {
 
-    if (!player || !enemy) return; // 🔥 FIX
+    if (!player || !enemy) return;
 
     const distance = Math.abs(player.position.x - enemy.position.x);
 
@@ -133,7 +122,6 @@ function checkRound() {
     }
 }
 
-// ================= NEXT ROUND =================
 function nextRound() {
 
     round++;
@@ -147,7 +135,6 @@ function nextRound() {
     updateHUD();
 }
 
-// ================= RESET =================
 function resetMatch() {
 
     round = 1;
@@ -177,23 +164,21 @@ window.addEventListener("keyup", (e) => {
     keys[e.key.toLowerCase()] = false;
 });
 
-// ================= UPDATE =================
-function update() {
-
-    if (!player || !enemy) return; // 🔥 FIX
-
-    if (keys["a"]) player.position.x -= 0.1;
-    if (keys["d"]) player.position.x += 0.1;
-
-    if (enemy.position.x > player.position.x + 2) {
-        enemy.position.x -= 0.03;
-    }
-}
-
 // ================= LOOP =================
 function animate() {
+
     requestAnimationFrame(animate);
-    update();
+
+    if (gameReady) {
+
+        if (keys["a"]) player.position.x -= 0.1;
+        if (keys["d"]) player.position.x += 0.1;
+
+        if (enemy.position.x > player.position.x + 2) {
+            enemy.position.x -= 0.03;
+        }
+    }
+
     renderer.render(scene, camera);
 }
 
