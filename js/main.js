@@ -68,6 +68,14 @@ const keys = {};
 
 window.addEventListener("keydown",(e)=>{
     keys[e.key.toLowerCase()] = true;
+
+    if(e.key.toLowerCase() === "j"){
+    attack(10); // yumruk
+}
+
+if(e.key.toLowerCase() === "k"){
+    attack(20); // tekme
+}
 });
 
 window.addEventListener("keyup",(e)=>{
