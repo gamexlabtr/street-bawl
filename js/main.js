@@ -54,6 +54,12 @@ new THREE.MeshStandardMaterial({color:0xff0000})
 enemy.position.set(3,1,0);
 scene.add(enemy);
 
+let playerHP = 100;
+let enemyHP = 100;
+
+let playerRounds = 0;
+let enemyRounds = 0;
+let round = 1;
 // Kamera
 camera.position.set(0,5,10);
 
@@ -103,5 +109,6 @@ renderer.setSize(
 window.innerWidth,
 window.innerHeight
 );
+
 
 });
