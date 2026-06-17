@@ -35,7 +35,7 @@ scene.add(floor);
 
 // ================= CAMERA POSITION =================
 camera.position.set(0, 5, 10);
-camera.lookAt(0, 0, 0);
+camera.lookAt(0, 1, 0);
 
 // ================= LOADER =================
 const loader = new GLTFLoader();
@@ -52,6 +52,7 @@ loader.load("./models/fighter.glb", (gltf) => {
     player.scale.set(2, 2, 2);
     scene.add(player);
 
+    console.log("Player loaded");
     checkReady();
 },
 undefined,
@@ -65,6 +66,7 @@ loader.load("./models/fighter.glb", (gltf) => {
     enemy.scale.set(2, 2, 2);
     scene.add(enemy);
 
+    console.log("Enemy loaded");
     checkReady();
 },
 undefined,
@@ -82,6 +84,7 @@ let round = 1;
 function checkReady() {
     if (player && enemy) {
         gameReady = true;
+        console.log("GAME READY");
         updateHUD();
     }
 }
@@ -99,7 +102,7 @@ function updateHUD() {
 // ================= ATTACK =================
 function attack(damage) {
 
-    if (!gameReady) return;
+    if (!player || !enemy) return; // 🔥 FIX
 
     const distance = Math.abs(player.position.x - enemy.position.x);
 
@@ -177,7 +180,7 @@ window.addEventListener("keyup", (e) => {
 // ================= UPDATE =================
 function update() {
 
-    if (!gameReady) return;
+    if (!player || !enemy) return; // 🔥 FIX
 
     if (keys["a"]) player.position.x -= 0.1;
     if (keys["d"]) player.position.x += 0.1;
